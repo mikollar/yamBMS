@@ -1,0 +1,1098 @@
+# Updated : 2025.07.07
+# Version : 1.2.8
+# GitHub  : https://github.com/txubelaxu/esphome-jk-bms
+
+# YamBMS ( Yet another multi-BMS Merging Solution )
+
+# This YAML is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
+
+packages:
+  bms_base: !include bms_base.yaml
+  bms_temperature_sensor: !include bms_temperature_sensor_2.yaml
+  # bms_errors_bitmask: !include bms_errors_bitmask_JK_RS485_Modbus.yaml
+
+# +--------------------------------------+
+# | Component settings                   |
+# +--------------------------------------+
+
+# Globalna premenna pre ulozenie casu poslednej spravy v ms
+globals:
+  - id: can_last_seen_ms
+    type: int
+    initial_value: '0'
+
+  - id: current_module_id
+    type: int
+    initial_value: '1'
+
+    # To store the minimum cell voltage found across all modules/cells
+  - id: min_cell_voltage_global
+    type: float
+    initial_value: "5.0" # Initialize high, as voltages are typically ~3V
+  
+  # To store the maximum cell voltage found across all modules/cells
+  - id: max_cell_voltage_global
+    type: float
+    initial_value: "0.0" # Initialize low
+    
+  # To store the location (Module*100 + Cell) of the minimum cell
+  - id: min_cell_location_global
+    type: int
+    initial_value: "0"
+
+  # To store the location (Module*100 + Cell) of the maximum cell
+  - id: max_cell_location_global
+    type: int
+    initial_value: "0"
+
+  - id: modules_response_global
+    type: int
+    initial_value: "0"
+
+# pylon_can_bms:
+#   - id: pylon_can_bms${bms_id}
+#     rs485_address: ${bms_address}
+#     jk_rs485_sniffer_id: ${sniffer_id}
+#     update_interval: ${bms_update_interval}
+
+# +--------------------------------------+
+# | Component entities                   |
+# +--------------------------------------+
+
+# switch:
+#   - platform: jk_rs485_bms
+#     jk_rs485_bms_id: jk_rs485_bms${bms_id}
+#     precharging:
+#       name: "${name} ${bms_name} precharging"
+#     charging:
+#       id: bms${bms_id}_charge_switch
+#       name: "${name} ${bms_name} charging"
+#     discharging:
+#       id: bms${bms_id}_discharge_switch
+#       name: "${name} ${bms_name} discharging"
+#     balancing:
+#       id: bms${bms_id}_balance_switch
+#       name: "${name} ${bms_name} balancing"
+#     emergency:
+#       name: "${name} ${bms_name} emergency"
+#     heating:
+#       name: "${name} ${bms_name} heating"
+#     display_always_on:
+#       name: "${name} ${bms_name} display_always_on"
+#     charging_float_mode:
+#       name: "${name} ${bms_name} charging float mode"
+#     timed_stored_data:
+#       name: "${name} ${bms_name} timed stored data"
+#     disable_temperature_sensors:
+#       name: "${name} ${bms_name} disable temperature sensors"
+#     smart_sleep_on:
+#       name: "${name} ${bms_name} smart sleep on"
+#     disable_pcl_module:
+#       name: "${name} ${bms_name} disable pcl module"
+#     gps_heartbeat:
+#       name: "${name} ${bms_name} gps heartbeat"
+#     port_selection:
+#       name: "${name} ${bms_name} port selection"
+#     special_charger:
+#       name: "${name} ${bms_name} special charger"
+
+binary_sensor:
+  # - platform: jk_rs485_bms
+  #   jk_rs485_bms_id: jk_rs485_bms${bms_id}
+
+  - platform: template
+    id: bms_rs485_online
+    name: "PYLON BMS RS485 online"
+
+  - platform: template
+    id: bms${bms_id}_equalizing
+    name: "${name} ${bms_name} status balancing"
+    lambda: return id(bms${bms_id}_max_charge_current).state < 100;
+
+
+  #   status_precharging:
+  #     name: "${name} ${bms_name} status precharging"
+
+  - platform: template
+    id: bms${bms_id}_charging_allowed
+    name: "${name} ${bms_name} status charging"
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_discharging_allowed
+    name: "${name} ${bms_name} status discharging"
+    internal: true
+    
+  - platform: template
+    id: bms${bms_id}_online_status
+    name: "${name} ${bms_name} status online"
+    internal: false
+
+  #   status_heating:
+  #     name: "${name} ${bms_name} status heating"
+
+  # - platform: template
+  #   name: "Charge Enable"
+  #   id: bms${bms_id}_charge_enable_sensor
+  #   device_class: power
+  #   internal: true
+
+  # - platform: template
+  #   name: "Discharge Enable"
+  #   id: bms${bms_id}_discharge_enable_sensor
+  #   device_class: power
+  #   internal: true
+
+  # - platform: template
+  #   name: "Request Force Charge I"
+  #   id: bms${bms_id}_request_force_charge_I_sensor
+  #   internal: true
+
+  # - platform: template
+  #   name: "Request Force Charge II"
+  #   id: bms${bms_id}_request_force_charge_II_sensor
+  #   internal: true
+
+  - platform: template
+    name: "Request Full Charge"
+    id: bms${bms_id}_request_full_charge_sensor
+    internal: true
+
+  - platform: template
+    name: "Discharge Overcurrent"
+    id: bms${bms_id}_discharge_overcurrent_sensor
+    internal: true
+
+  - platform: template
+    name: "Cell Under Temperature"
+    id: bms${bms_id}_cell_under_temperature_sensor
+    internal: true
+
+  - platform: template
+    name: "Cell Over Temperature"
+    id: bms${bms_id}_cell_over_temperature_sensor
+    internal: true
+
+  - platform: template
+    name: "Cell or Module Under Voltage"
+    id: bms${bms_id}_cell_or_module_under_voltage_sensor
+    internal: true
+
+  - platform: template
+    name: "Cell or Module Over Voltage"
+    id: bms${bms_id}_cell_or_module_over_voltage_sensor
+    internal: true
+
+  - platform: template
+    name: "System Error"
+    id: bms${bms_id}_system_error_sensor
+    internal: true
+
+  - platform: template
+    name: "Charge Overcurrent"
+    id: bms${bms_id}_charge_overcurrent_sensor
+    internal: true
+
+  - platform: template
+    name: "Discharge High Current"
+    id: bms${bms_id}_discharge_high_current_sensor
+    internal: true
+
+  - platform: template
+    name: "Cell Low Temperature"
+    id: bms${bms_id}_cell_low_temperature_sensor
+    internal: true
+
+  - platform: template
+    name: "Cell High Temperature"
+    id: bms${bms_id}_cell_high_temperature_sensor
+    internal: true
+
+  - platform: template
+    name: "Cell or Module Low Voltage"
+    id: bms${bms_id}_cell_or_module_low_voltage_sensor
+    internal: true
+
+  - platform: template
+    name: "Cell or Module High Voltage"
+    id: bms${bms_id}_cell_or_module_high_voltage_sensor
+    internal: true
+
+  - platform: template
+    name: "Internal Communication Fail"
+    id: bms${bms_id}_internal_communication_fail_sensor
+    internal: true
+
+  - platform: template
+    name: "Charge High Current"
+    id: bms${bms_id}_charge_high_current_sensor
+    internal: true
+
+sensor:
+  # - platform: template
+  #   id:
+  #   balancing_direction:
+  #     name: "${name} ${bms_name} balancing direction"
+
+  - platform: template
+    id: bms${bms_id}_min_cell_voltage
+    name: "${name} ${bms_name} cell voltage min"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_max_cell_voltage
+    name: "${name} ${bms_name} cell voltage max"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_cell_delta_voltage
+    name: "${name} ${bms_name} cell delta voltage"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_1
+    name: "${name} ${bms_name} cell delta voltage 3.1"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_2
+    name: "${name} ${bms_name} cell delta voltage 3.2"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_3
+    name: "${name} ${bms_name} cell delta voltage 3.3"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_4
+    name: "${name} ${bms_name} cell delta voltage 3.4"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_5
+    name: "${name} ${bms_name} cell delta voltage 3.5"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_6
+    name: "${name} ${bms_name} cell delta voltage 3.6"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_7
+    name: "${name} ${bms_name} cell delta voltage 3.7"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_8
+    name: "${name} ${bms_name} cell delta voltage 3.8"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_9
+    name: "${name} ${bms_name} cell delta voltage 3.9"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_10
+    name: "${name} ${bms_name} cell delta voltage 3.10"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_11
+    name: "${name} ${bms_name} cell delta voltage 3.11"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_12
+    name: "${name} ${bms_name} cell delta voltage 3.12"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_13
+    name: "${name} ${bms_name} cell delta voltage 3.13"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_14
+    name: "${name} ${bms_name} cell delta voltage 3.14"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_cell_voltage_3_15
+    name: "${name} ${bms_name} cell delta voltage 3.15"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_average_cell_voltage
+    name: "${name} ${bms_name} cell average voltage"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_total_voltage
+    name: "${name} ${bms_name} battery voltage"
+    accuracy_decimals: 3
+    unit_of_measurement: V
+
+  - platform: template
+    id: bms${bms_id}_current
+    name: "${name} ${bms_name} battery current"
+    accuracy_decimals: 3
+    unit_of_measurement: A
+
+  - platform: template
+    id: bms${bms_id}_power
+    name: "${name} ${bms_name} battery power"
+    accuracy_decimals: 1
+    unit_of_measurement: W
+  
+  - platform: template
+    id: bms${bms_id}_charging_power
+    name: "${name} ${bms_name} battery power charging"
+    accuracy_decimals: 1
+    unit_of_measurement: W
+    update_interval: ${bms_update_interval}
+    lambda: |-
+      float power = id(bms${bms_id}_power).state;
+
+      if(power <= 0) {
+        return 0.000;
+      }
+      else {
+        return power;
+      }
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_discharging_power
+    name: "${name} ${bms_name} battery power discharging"
+    accuracy_decimals: 1
+    unit_of_measurement: W
+    update_interval: ${bms_update_interval}
+    lambda: |-
+      float power = id(bms${bms_id}_power).state;
+
+      if(power >= 0) {
+        return 0.000;
+      }
+      else {
+        return -1 * power;
+      }
+    internal: true
+    
+
+  - platform: template
+    id: bms${bms_id}_temperature_sensor_1
+    name: "${name} ${bms_name} temperature sensor 1"
+    update_interval: never
+
+  - platform: template
+    id: bms${bms_id}_temperature_sensor_2
+    name: "${name} ${bms_name} temperature sensor 2"
+    update_interval: never
+
+  - platform: template
+    id: bms${bms_id}_state_of_charge
+    name: "${name} ${bms_name} battery capacity state of charge"
+    update_interval: never
+
+  - platform: template
+    id: bms${bms_id}_charging_cycles_raw
+    internal: true
+    name: "${name} ${bms_name} charging cycles"
+    lambda: "return 200; "
+
+  - platform: template
+    id: bms${bms_id}_cycle_capacity_raw
+    internal: true
+    name: "${name} ${bms_name} battery capacity total charging cycle"
+    lambda: "return 200; "
+
+  # +--------------------------------------+
+  # | YamBMS Errors Bitmask (16bit)        |
+  # +--------------------------------------+
+
+  # Bit 0     General alarm                                0000 0000 0000 0001         0x0001
+  # Bit 1     Battery high voltage alarm                   0000 0000 0000 0010         0x0002
+  # Bit 2     Battery low voltage alarm                    0000 0000 0000 0100         0x0004
+  # Bit 3     Battery high temperature alarm               0000 0000 0000 1000         0x0008
+  # Bit 4     Battery low temperature alarm                0000 0000 0001 0000         0x0010
+  # Bit 5     Battery high temperature charge alarm        0000 0000 0010 0000         0x0020
+  # Bit 6     Battery low temperature charge alarm         0000 0000 0100 0000         0x0040
+  # Bit 7     Battery high discharge current alarm         0000 0000 1000 0000         0x0080
+  # Bit 8     Battery high charge current alarm            0000 0001 0000 0000         0x0100
+  # Bit 9     Contactor alarm                              0000 0010 0000 0000         0x0200
+  # Bit 10    Short circuit alarm                          0000 0100 0000 0000         0x0400
+  # Bit 11    BMS internal alarm                           0000 1000 0000 0000         0x0800
+  # Bit 12    Cell imbalance alarm                         0001 0000 0000 0000         0x1000
+  # Bit 13    Reserved                                     0010 0000 0000 0000         0x2000
+  # Bit 14    Reserved                                     0100 0000 0000 0000         0x4000
+  # Bit 15    Reserved                                     1000 0000 0000 0000         0x8000
+  - platform: template
+    id: bms${bms_id}_yambms_errors_bitmask
+    name: "${name} ${bms_name} YamBMS Errors Bitmask"
+    update_interval: ${bms_update_interval}
+    accuracy_decimals: 0
+    icon: mdi:alert-circle-outline
+    filters:
+      - or:
+        - throttle: 10s
+        - delta: 1
+    lambda: |-
+      uint16_t yambms_errors_bitmask = 0;
+      if (id(bms${bms_id}_cell_under_temperature_sensor).state) yambms_errors_bitmask |= 0x0010;
+      if (id(bms${bms_id}_cell_over_temperature_sensor).state) yambms_errors_bitmask |= 0x0008;
+      if (id(bms${bms_id}_cell_or_module_under_voltage_sensor).state) yambms_errors_bitmask |= 0x0004;
+      if (id(bms${bms_id}_cell_or_module_over_voltage_sensor).state) yambms_errors_bitmask |= 0x0002;
+      if (id(bms${bms_id}_system_error_sensor).state) yambms_errors_bitmask |= 0x0001;
+      if (id(bms${bms_id}_charge_overcurrent_sensor).state) yambms_errors_bitmask |= 0x0100;
+      if (id(bms${bms_id}_discharge_high_current_sensor).state) yambms_errors_bitmask |= 0x0080;
+      if (id(bms${bms_id}_cell_low_temperature_sensor).state) yambms_errors_bitmask |= 0x0010;
+      if (id(bms${bms_id}_cell_high_temperature_sensor).state) yambms_errors_bitmask |= 0x0008;
+      if (id(bms${bms_id}_cell_or_module_low_voltage_sensor).state) yambms_errors_bitmask |= 0x0004;
+      if (id(bms${bms_id}_cell_or_module_high_voltage_sensor).state) yambms_errors_bitmask |= 0x0002;
+      if (id(bms${bms_id}_internal_communication_fail_sensor).state) yambms_errors_bitmask |= 0x0001;
+      if (id(bms${bms_id}_charge_high_current_sensor).state) yambms_errors_bitmask |= 0x0100;
+
+      return yambms_errors_bitmask;
+
+  - platform: template
+    name: "${name} ${bms_name} cell count"
+    id: "bms${bms_id}_cell_count"
+    lambda: "return 15;"
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_battery_soh
+    name: "${name} ${bms_name} battery soh valuation"
+    unit_of_measurement: '%'
+    update_interval: never
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_max_charge_current
+    name: "${name} ${bms_name} max charging current"
+    unit_of_measurement: 'A'
+    update_interval: never
+
+  - platform: template
+    id: bms${bms_id}_max_discharge_current
+    name: "${name} ${bms_name} max discharging current"
+    unit_of_measurement: 'A'
+    update_interval: never
+
+  # cell_ovp
+  - platform: template
+    id: bms${bms_id}_cell_ovp
+    name: "${name} ${bms_name} cell ovp"
+    update_interval: ${bms_update_interval}
+    accuracy_decimals: 3
+    unit_of_measurement: V
+    device_class: voltage
+    filters:
+      - or:
+        - throttle: 10s
+        - delta: 0.001
+    lambda: return ${bms_cell_ovp};
+    internal: true
+
+  # cell_uvp
+  - platform: template
+    id: bms${bms_id}_cell_uvp
+    name: "${name} ${bms_name} cell uvp"
+    update_interval: ${bms_update_interval}
+    accuracy_decimals: 3
+    unit_of_measurement: V
+    device_class: voltage
+    filters:
+      - or:
+        - throttle: 10s
+        - delta: 0.001
+    lambda: return ${bms_cell_uvp};
+    internal: true
+
+  # balance_trigger_voltage
+  - platform: template
+    id: bms${bms_id}_balance_trigger_voltage
+    name: "${name} ${bms_name} balance trigger voltage"
+    update_interval: ${bms_update_interval}
+    accuracy_decimals: 3
+    unit_of_measurement: V
+    device_class: voltage
+    filters:
+      - or:
+        - throttle: 10s
+        - delta: 0.001
+    lambda: return ${bms_balance_trigger_voltage};
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_min_voltage_cell
+    name: "${name} ${bms_name} cell voltage min cell number"
+    accuracy_decimals: 0
+    
+
+  - platform: template
+    id: bms${bms_id}_max_voltage_cell
+    name: "${name} ${bms_name} cell voltage max cell number"
+    accuracy_decimals: 0
+
+
+  - platform: template
+    id: bms${bms_id}_battery_capacity
+    name: "${name} ${bms_name} nominal capacity"
+    accuracy_decimals: 0
+    unit_of_measurement: Ah
+    filters:
+      - or:
+        - throttle: 10s
+        - delta: 0.001
+    lambda: return 250;
+    internal: true
+
+  - platform: template
+    id: bms${bms_id}_capacity_remaining_ah
+    name: "${name} ${bms_name} battery capacity remaining"
+    accuracy_decimals: 0
+    unit_of_measurement: Ah
+    filters:
+    - or:
+      - throttle: 10s
+      - delta: 0.001
+    lambda: return 250.0 * id(bms${bms_id}_state_of_charge).state / 100.0;
+    internal: false
+    update_interval: 5s
+
+
+# Interval kontroluje posledne prijatie a prepne OFF po 5=6s ticha
+interval:
+  - interval: 3s
+    then:
+      - lambda: |-
+          uint32_t now = millis();
+          uint32_t last = (uint32_t)id(can_last_seen_ms);
+          if (last == 0) {
+            // nikdy nebolo prijate nic -> OFF
+            id(bms${bms_id}_online_status).publish_state(false);
+            return;
+          }
+          uint32_t diff = (now >= last) ? (now - last) : (UINT32_MAX - last + now + 1);
+          if (diff <= 12000 && id(bms_rs485_online).state) {
+            id(bms${bms_id}_online_status).publish_state(true);
+          } else {
+            id(bms${bms_id}_online_status).publish_state(false);
+          }
+
+  - interval: 1.5s
+    then:
+      # Use a static ID to track the current module (1 to 4)
+      - lambda: |-
+          // The global variable 'current_module_id' is now accessed via 'id(current_module_id)'
+          // Get the current ID for transmission
+          int module_id_to_send = id(current_module_id);
+
+          std::string tx;
+          
+          switch (module_id_to_send) {
+            case 1:
+              // 1. modul: "~20024642E00202FD33\r"
+              tx = "~20024642E00202FD33\r";
+              break;
+            case 2:
+              // 2. modul: "~20034642E00203FD31\r"
+              tx = "~20034642E00203FD31\r";
+              break;
+            case 3:
+              // 3. modul: "~20044642E00204FD2F\r"
+              tx = "~20044642E00204FD2F\r";
+              break;
+            case 4:
+              // 4. modul: "~20054642E00205FD2D\r"
+              tx = "~20054642E00205FD2D\r";
+              break;
+            default:
+              // Fallback, should not happen if logic is correct
+              ESP_LOGE("pylon_tx", "Invalid module ID: %d", current_module_id);
+              return; 
+          }
+
+          id(uart_esp_2).write_array((const uint8_t*)tx.data(), tx.size());
+          ESP_LOGI("pylon_tx", "TX for Module %d (%d bytes): %s", current_module_id, tx.size(), tx.c_str());
+
+          // Increment module ID for the *next* interval's transmission
+          id(current_module_id)++;
+          // Reset to 1 after reaching 4
+          if (id(current_module_id) > 4) {
+            id(current_module_id) = 1;
+          }
+
+      - delay: 0.5s
+     # --- ACTION 2: RECEIVE RX DATA AND AGGREGATE MIN/MAX ---
+      - lambda: |-
+
+          // Access the ID of the module that was *just* queried.
+          // Note: The ID is the one *before* it was incremented and reset in the TX lambda.
+          const int queried_module_id = id(current_module_id) == 1 ? 4 : id(current_module_id) - 1;
+
+          ESP_LOGI("pylon_rx", "-------------MODUL %d RX Processing", queried_module_id);
+
+          // Local variables to track min/max for the *current* module's read.
+          float current_module_min_v = 5.0f; 
+          float current_module_max_v = 0.0f;
+          int current_module_min_c = 0; // Cell index (1-based)
+          int current_module_max_c = 0; // Cell index (1-based)
+          
+          // helper function: read 2 bytes, advance index, return scaled voltage
+          // MODIFIED to track min/max for the *current* module
+          auto read_cell_voltage = [&](const std::vector<uint8_t> &bytes, int &idx) -> float {
+            uint16_t raw = (bytes[idx] << 8) | bytes[idx+1];
+            float v = raw / 1000.0f;
+            int cell_index_1_based = (idx / 2) + 1; // Cell 1 is at idx=0, Cell 2 at idx=2, etc.
+
+            ESP_LOGI("pylon_rx", "CELL[%d] %.3f V", cell_index_1_based, v);
+            idx = idx + 2;
+
+            // --- Track Min/Max for current module ---
+            if (v < current_module_min_v) {
+                current_module_min_v = v;
+                current_module_min_c = cell_index_1_based;
+            }
+            if (v > current_module_max_v) {
+                current_module_max_v = v;
+                current_module_max_c = cell_index_1_based;
+            }
+            // ----------------------------------------
+            return v;
+          };
+
+           auto read_cell_voltage_2 = [&](const std::vector<uint8_t> &bytes, int &idx) -> float {
+            uint16_t raw = (bytes[idx] << 8) | bytes[idx+1];
+            float v = raw / 1000.0f;
+            int cell_index_1_based = (idx / 2) + 1; // Cell 1 is at idx=0, Cell 2 at idx=2, etc.
+
+            ESP_LOGI("pylon_rx", "CELL[%d] %.3f V", cell_index_1_based, v);
+            idx = idx + 2;
+
+            return v;
+          };
+          
+          // Other helper functions (read_cell_temp, read_cell_current, read_cell_capacity)
+          auto read_cell_temp = [](const std::vector<uint8_t> &bytes, int &idx) -> float {
+            uint16_t raw = (bytes[idx] << 8) | bytes[idx+1];
+            float v = (raw - 2731.0) / 10.0f;
+            ESP_LOGI("pylon_rx", "TEMP[%d] %.3f C", idx/2, v);
+            idx = idx + 2;
+            return v;
+          };
+
+          auto read_cell_current = [](const std::vector<uint8_t> &bytes, int &idx) -> float {
+            int16_t raw = (int16_t)((bytes[idx] << 8) | bytes[idx+1]);
+            float v = raw / 10.0f;
+            ESP_LOGI("pylon_rx", "CURRENT %.3f A", v);
+            idx = idx + 2;
+            return v;
+          };
+
+          auto read_cell_capacity = [](const std::vector<uint8_t> &bytes, int &idx) -> float {
+            uint32_t raw = (uint32_t)((bytes[idx] << 16) | (bytes[idx+1] << 8) | bytes[idx+2]);
+            float v = raw / 1000.0;
+            ESP_LOGI("pylon_rx", "CAPACITY %.3f Ah", v);
+            idx = idx + 3;
+            return v;
+          };
+
+          auto read_cell_capacity_small = [](const std::vector<uint8_t> &bytes, int &idx) -> float {
+            uint24_t raw = (uint24_t)((bytes[idx] << 8) | bytes[idx+1]);
+            float v = raw / 1000.0;
+            ESP_LOGI("pylon_rx", "CAPACITY %.3f Ah", v);
+            idx = idx + 2;
+            return v;
+          };
+
+
+          static std::vector<uint8_t> rx;
+          while (id(uart_esp_2).available()) {
+            uint8_t c; 
+            id(uart_esp_2).read_byte(&c);
+
+            // Wait for SOI
+            if (rx.empty() && c != 0x7E) continue;
+            
+            rx.push_back(c);
+
+            // End of frame
+            if (c == 0x0D) {
+              if (rx.front() != 0x7E) { rx.clear(); continue; }
+
+              // Strip SOI/EOI
+              std::string frame(rx.begin(), rx.end());
+               
+              std::string body = frame.substr(5, frame.size()-2);
+              int lenid = strtol(body.substr(8,4).c_str(), nullptr, 16);
+              std::string info = body.substr(12, lenid);
+
+              // Convert INFO into bytes
+              std::vector<uint8_t> bytes;
+              for (int i=0; i+2 <= (int)info.size(); i+=2) {
+                uint8_t b = (uint8_t) strtol(info.substr(i,2).c_str(), nullptr, 16);
+                bytes.push_back(b);
+              }
+
+              int idx = 0;
+              uint8_t ncells = bytes[idx++];
+              //ESP_LOGI("pylon_rx", "CELLS %d", ncells);
+              
+              // --- CORE LOGIC: Process all cell voltages and update local min/max ---
+              for (int c=0; c < ncells; c++) {
+                float v = read_cell_voltage(bytes, idx);
+
+                if(queried_module_id == 3) {
+                  // Publish per-cell delta voltages for Module 3
+                  switch(c) {
+                    case 0:
+                      id(bms${bms_id}_cell_voltage_3_1).publish_state(v);
+                      break;
+                    case 1:
+                      id(bms${bms_id}_cell_voltage_3_2).publish_state(v);
+                      break;
+                    case 2:
+                      id(bms${bms_id}_cell_voltage_3_3).publish_state(v);
+                      break;
+                    case 3:
+                      id(bms${bms_id}_cell_voltage_3_4).publish_state(v);
+                      break;
+                    case 4:
+                      id(bms${bms_id}_cell_voltage_3_5).publish_state(v);
+                      break;
+                    case 5:
+                      id(bms${bms_id}_cell_voltage_3_6).publish_state(v);
+                      break;
+                    case 6:
+                      id(bms${bms_id}_cell_voltage_3_7).publish_state(v);
+                      break;
+                    case 7:
+                      id(bms${bms_id}_cell_voltage_3_8).publish_state(v);
+                      break;
+                    case 8:
+                      id(bms${bms_id}_cell_voltage_3_9).publish_state(v);
+                      break;
+                    case 9:
+                      id(bms${bms_id}_cell_voltage_3_10).publish_state(v);
+                      break;
+                    case 10:
+                      id(bms${bms_id}_cell_voltage_3_11).publish_state(v);
+                      break;
+                    case 11:
+                      id(bms${bms_id}_cell_voltage_3_12).publish_state(v);
+                      break;
+                    case 12:
+                      id(bms${bms_id}_cell_voltage_3_13).publish_state(v);
+                      break;
+                    case 13:
+                      id(bms${bms_id}_cell_voltage_3_14).publish_state(v);
+                      break;
+                    case 14:
+                      id(bms${bms_id}_cell_voltage_3_15).publish_state(v);
+                      break;
+                  }
+                }
+              }
+              
+              // --- AGGREGATION: Compare local min/max to global min/max ---
+              
+              // Check and update Global Minimum
+              if (current_module_min_v < id(min_cell_voltage_global)) {
+                  id(min_cell_voltage_global) = current_module_min_v;
+                  // Location format: Module*100 + Cell
+                  id(min_cell_location_global) = (queried_module_id * 100) + current_module_min_c;
+              }
+
+              // Check and update Global Maximum
+              if (current_module_max_v > id(max_cell_voltage_global)) {
+                  id(max_cell_voltage_global) = current_module_max_v;
+                  // Location format: Module*100 + Cell
+                  id(max_cell_location_global) = (queried_module_id * 100) + current_module_max_c;
+              }
+              
+              id(modules_response_global) = id(modules_response_global) + 1;
+
+              // --- FINAL PUBLISH AND RESET LOGIC (Runs after Module 4 data is processed) ---
+              // If the next module to be queried is 1, it means we just finished processing module 4 (queried_module_id == 4).
+              if (id(current_module_id) == 1) {
+                  ESP_LOGI("pylon_rx", "--- FULL CYCLE COMPLETE: PUBLISHING FINAL VALUES ---");
+                  ESP_LOGI("pylon_rx", "--- modules_response_global %d---", id(modules_response_global));
+                  
+                  // Publish the global results to the sensors
+                  id(bms${bms_id}_min_cell_voltage).publish_state(id(min_cell_voltage_global));
+                  id(bms${bms_id}_min_voltage_cell).publish_state(id(min_cell_location_global));
+                  id(bms${bms_id}_max_cell_voltage).publish_state(id(max_cell_voltage_global));
+                  id(bms${bms_id}_max_voltage_cell).publish_state(id(max_cell_location_global));
+                  id(bms_rs485_online).publish_state(id(modules_response_global) == 4);
+                  
+
+                  float diff = id(max_cell_voltage_global) - id(min_cell_voltage_global);
+                  id(bms${bms_id}_cell_delta_voltage).publish_state(diff);
+
+                  // Reset Globals for the NEXT cycle (which starts on the next interval run)
+                  id(min_cell_voltage_global) = 5.0f; 
+                  id(max_cell_voltage_global) = 0.0f; 
+                  id(min_cell_location_global) = 0;
+                  id(max_cell_location_global) = 0;
+                  id(modules_response_global) = 0;
+              }
+              // --- End Final Publish and Reset Logic ---
+
+              // --- Process remaining data (Temps, Total Voltage, Capacity) ---
+              int8_t nTemps = bytes[idx++];
+              //ESP_LOGI("pylon_rx", "TEMPS %d", nTemps);
+
+             for (int c=0; c < nTemps; c++) {
+                read_cell_temp(bytes, idx);
+             }
+
+             read_cell_current(bytes, idx);
+             read_cell_voltage_2(bytes, idx); // Total Voltage (uses the same helper, but we ignore its min/max contribution here)
+
+             // Remaining capacity and total capacity (your original index handling)
+             //idx++;  idx++;
+             read_cell_capacity_small(bytes, idx);
+
+             
+             ESP_LOGI("pylon_rx", "USER[%d] %d", idx, bytes[idx]);
+             idx++;
+             //idx++;   idx++;
+             read_cell_capacity_small(bytes, idx);
+             idx++;
+             idx++;
+             read_cell_capacity(bytes, idx);
+             read_cell_capacity(bytes, idx);
+
+              rx.clear();
+            }
+          }
+
+
+canbus:
+  - platform: esp32_can
+    id: can_bus_inverter
+    tx_pin: GPIO23
+    rx_pin: GPIO22
+    can_id: 0x0E5  # Your ESP32's CAN ID
+    bit_rate: 500kbps
+    on_frame:
+      # 1. Battery Charge/Discharge Limits (CAN ID: 0x351)
+      - can_id: 0x351
+        use_extended_id: false
+        then:
+          - lambda: |-
+              float parsed_charge_voltage = (x[1] << 8 | x[0]) * 0.1;  // Bytes 0-1, Unit: 0.1V
+              float parsed_charge_current = (int16_t)(x[3] << 8 | x[2]) * 0.1;  // Bytes 2-3, Unit: 0.1A
+              float parsed_discharge_current = (int16_t)(x[5] << 8 | x[4]) * 0.1;  // Bytes 4-5, Unit: 0.1A
+              ESP_LOGD("can", "Charge Voltage: %.1f V, Charge Current: %.1f A, Discharge Current: %.1f A", parsed_charge_voltage, parsed_charge_current, parsed_discharge_current);
+              //id(charge_voltage).publish_state(parsed_charge_voltage);  // Publish Charge Voltage
+              id(bms${bms_id}_max_charge_current).publish_state(parsed_charge_current);  // Publish Charge Current
+              id(bms${bms_id}_max_discharge_current).publish_state(parsed_discharge_current);  // Publish Discharge Current
+              // uloz cas prijatia do globalnej premennej
+              id(can_last_seen_ms) = millis();
+
+
+      # 2. SOC and SOH (CAN ID: 0x355)
+      - can_id: 0x355
+        use_extended_id: false
+        then:
+          - lambda: |-
+              float soc = (x[1] << 8 | x[0]);  // Bytes 0-1
+              float soh = (x[3] << 8 | x[2]);  // Bytes 2-3
+              ESP_LOGI("can", "SOC: %.1f%%, SOH: %.1f%%", soc, soh);
+              id(bms${bms_id}_state_of_charge).publish_state(soc);
+              id(bms${bms_id}_battery_soh).publish_state(soh);
+              id(can_last_seen_ms) = millis();
+
+      # 3. Voltage, Current, and Temperature (CAN ID: 0x356)
+      - can_id: 0x356
+        use_extended_id: false
+        then:
+          - lambda: |-
+              float voltage = (x[1] << 8 | x[0]) * 0.01;  // Bytes 0-1, Unit: 0.01V
+              float current = (int16_t)(x[3] << 8 | x[2]) * 0.1;  // Bytes 2-3, Unit: 0.1A
+              float temperature = (int16_t)(x[5] << 8 | x[4]) * 0.1;  // Bytes 4-5, Unit: 0.1°C
+              // ESP_LOGD("can", "Voltage: %.2f V, Current: %.2f A, Temperature: %.1f°C", voltage, current, temperature);
+              id(bms${bms_id}_average_cell_voltage).publish_state(voltage/15);
+              id(bms${bms_id}_total_voltage).publish_state(voltage);
+              id(bms${bms_id}_current).publish_state(current);
+              id(bms${bms_id}_power).publish_state(current * voltage);
+              id(bms${bms_id}_temperature_sensor_1).publish_state(temperature);
+              //id(bms${bms_id}_temperature_sensor_2).publish_state(temperature);
+              id(can_last_seen_ms) = millis();
+
+      # CAN message handler for 0x35C
+      - can_id: 0x35C
+        use_extended_id: false
+        then:
+          - lambda: |-
+              uint8_t flags = x[0];  // Byte 0 contains the flags
+
+              // Parse individual flags
+              bool charge_enable = flags & 0x80;  // Bit 7
+              bool discharge_enable = flags & 0x40;  // Bit 6
+              bool request_force_charge_I = flags & 0x20;  // Bit 5
+              bool request_force_charge_II = flags & 0x10;  // Bit 4
+              bool request_full_charge = flags & 0x08;  // Bit 3
+
+              // Log parsed flags
+              ESP_LOGD("can", "Flags (0x35C): Charge Enable: %s, Discharge Enable: %s, Force Charge I: %s, Force Charge II: %s, Request Full Charge: %s",
+                  charge_enable ? "Yes" : "No",
+                  discharge_enable ? "Yes" : "No",
+                  request_force_charge_I ? "Yes" : "No",
+                  request_force_charge_II ? "Yes" : "No",
+                  request_full_charge ? "Yes" : "No");
+
+              // Publish flags to Home Assistant sensors
+              id(bms${bms_id}_charging_allowed).publish_state(charge_enable);
+              id(bms${bms_id}_discharging_allowed).publish_state(discharge_enable);
+              id(can_last_seen_ms) = millis();
+              //id(request_force_charge_I_sensor).publish_state(request_force_charge_I);
+              //id(request_force_charge_II_sensor).publish_state(request_force_charge_II);
+              //id(request_full_charge_sensor).publish_state(request_full_charge);
+
+      # 5. Manufacturer Information (CAN ID: 0x35E)
+      - can_id: 0x35E
+        use_extended_id: false
+        then:
+          - lambda: |-
+              char manufacturer[9];
+              memcpy(manufacturer, x.data(), 8);  // Use x.data() to get raw pointer
+              manufacturer[8] = '\0';  // Null-terminate the string
+              //# ESP_LOGD("can", "Manufacturer: %s", manufacturer);
+              //id(protocol_name).publish_state(manufacturer);  // Publish to Protocol Name sensor
+
+      - can_id: 0x359
+        use_extended_id: false
+        then:
+          - lambda: |-
+              uint8_t protection_flags_byte0 = x[0];  // Byte 0: Protection flags
+              uint8_t protection_flags_byte1 = x[1];  // Byte 1: Protection flags
+              uint8_t alarm_flags_byte2 = x[2];       // Byte 2: Alarm flags
+              uint8_t alarm_flags_byte3 = x[3];       // Byte 3: Alarm flags
+              uint8_t module_numbers = x[4];         // Byte 4: Module numbers
+
+              // Parse individual flags (existing logic)
+              bool discharge_overcurrent = protection_flags_byte0 & 0x80;  // Bit 7
+              bool cell_under_temperature = protection_flags_byte0 & 0x10;  // Bit 4
+              bool cell_over_temperature = protection_flags_byte0 & 0x08;  // Bit 3
+              bool cell_or_module_under_voltage = protection_flags_byte0 & 0x04;  // Bit 2
+              bool cell_or_module_over_voltage = protection_flags_byte0 & 0x02;  // Bit 1
+              bool system_error = protection_flags_byte1 & 0x08;  // Bit 3
+              bool charge_overcurrent = protection_flags_byte1 & 0x01;  // Bit 0
+              bool discharge_high_current = alarm_flags_byte2 & 0x80;  // Bit 7
+              bool cell_low_temperature = alarm_flags_byte2 & 0x10;  // Bit 4
+              bool cell_high_temperature = alarm_flags_byte2 & 0x08;  // Bit 3
+              bool cell_or_module_low_voltage = alarm_flags_byte2 & 0x04;  // Bit 2
+              bool cell_or_module_high_voltage = alarm_flags_byte2 & 0x02;  // Bit 1
+              bool internal_communication_fail = alarm_flags_byte3 & 0x08;  // Bit 3
+              bool charge_high_current = alarm_flags_byte3 & 0x01;  // Bit 0
+
+              // Log parsed flags
+              ESP_LOGD("can", "Module Numbers (Byte 4): %d", module_numbers);
+              ESP_LOGD("can", "Protection Flags Byte 0: Discharge Overcurrent: %s, Cell Under Temp: %s, Cell Over Temp: %s, Cell/Module Under Voltage: %s, Cell/Module Over Voltage: %s",
+                  discharge_overcurrent ? "Yes" : "No",
+                  cell_under_temperature ? "Yes" : "No",
+                  cell_over_temperature ? "Yes" : "No",
+                  cell_or_module_under_voltage ? "Yes" : "No",
+                  cell_or_module_over_voltage ? "Yes" : "No");
+              ESP_LOGD("can", "Protection Flags Byte 1: System Error: %s, Charge Overcurrent: %s",
+                  system_error ? "Yes" : "No",
+                  charge_overcurrent ? "Yes" : "No");
+              ESP_LOGD("can", "Alarm Flags Byte 2: Discharge High Current: %s, Cell Low Temp: %s, Cell High Temp: %s, Cell/Module Low Voltage: %s, Cell/Module High Voltage: %s",
+                  discharge_high_current ? "Yes" : "No",
+                  cell_low_temperature ? "Yes" : "No",
+                  cell_high_temperature ? "Yes" : "No",
+                  cell_or_module_low_voltage ? "Yes" : "No",
+                  cell_or_module_high_voltage ? "Yes" : "No");
+              ESP_LOGD("can", "Alarm Flags Byte 3: Internal Communication Fail: %s, Charge High Current: %s",
+                  internal_communication_fail ? "Yes" : "No",
+                  charge_high_current ? "Yes" : "No");
+
+              // Publish parsed values to Home Assistant
+              id(bms${bms_id}_discharge_overcurrent_sensor).publish_state(discharge_overcurrent);
+              id(bms${bms_id}_cell_under_temperature_sensor).publish_state(cell_under_temperature);
+              id(bms${bms_id}_cell_over_temperature_sensor).publish_state(cell_over_temperature);
+              id(bms${bms_id}_cell_or_module_under_voltage_sensor).publish_state(cell_or_module_under_voltage);
+              id(bms${bms_id}_cell_or_module_over_voltage_sensor).publish_state(cell_or_module_over_voltage);
+              id(bms${bms_id}_system_error_sensor).publish_state(system_error);
+              id(bms${bms_id}_charge_overcurrent_sensor).publish_state(charge_overcurrent);
+              id(bms${bms_id}_discharge_high_current_sensor).publish_state(discharge_high_current);
+              id(bms${bms_id}_cell_low_temperature_sensor).publish_state(cell_low_temperature);
+              id(bms${bms_id}_cell_high_temperature_sensor).publish_state(cell_high_temperature);
+              id(bms${bms_id}_cell_or_module_low_voltage_sensor).publish_state(cell_or_module_low_voltage);
+              id(bms${bms_id}_cell_or_module_high_voltage_sensor).publish_state(cell_or_module_high_voltage);
+              id(bms${bms_id}_internal_communication_fail_sensor).publish_state(internal_communication_fail);
+              id(bms${bms_id}_charge_high_current_sensor).publish_state(charge_high_current);
+              id(can_last_seen_ms) = millis();
+              //id(bms${bms_id}_module_numbers_sensor).publish_state(module_numbers);
+
+
+
+      - can_id: 0x373
+        use_extended_id: false
+        then:
+          - lambda: |-
+              // Byte 0-1: Actual Minimum Cell Voltage
+              uint16_t min_cell_voltage = (x[1] << 8) | x[0];  // Combine bytes
+              float min_cell_voltage_v = min_cell_voltage * 0.001;  // Scale to volts (0.1mV)
+
+              // Byte 2-3: Actual Maximum Cell Voltage
+              uint16_t max_cell_voltage = (x[3] << 8) | x[2];  // Combine bytes
+              float max_cell_voltage_v = max_cell_voltage * 0.001;  // Scale to volts (0.1mV)
+
+              // Byte 4-5: Actual Minimum Cell Temperature (Kelvin)
+              uint16_t min_cell_temp_kelvin = (x[5] << 8) | x[4];  // Combine bytes
+              float min_cell_temp_c = min_cell_temp_kelvin - 273.15;  // Convert Kelvin to Celsius
+
+              // Byte 6-7: Actual Maximum Cell Temperature (Kelvin)
+              uint16_t max_cell_temp_kelvin = (x[7] << 8) | x[6];  // Combine bytes
+              float max_cell_temp_c = max_cell_temp_kelvin - 273.15;  // Convert Kelvin to Celsius
+
+              // Log the parsed values
+              ESP_LOGI("can", "CAN ID 0x373: Min Cell Voltage: %.3fV, Max Cell Voltage: %.3fV, Min Cell Temp: %.2f°C, Max Cell Temp: %.2f°C",
+                  min_cell_voltage_v, max_cell_voltage_v, min_cell_temp_c, max_cell_temp_c);
+
+              // Publish values to Home Assistant
+              id(bms${bms_id}_min_cell_voltage).publish_state(min_cell_voltage_v);
+              id(bms${bms_id}_max_cell_voltage).publish_state(max_cell_voltage_v); 
+              //id(actual_min_cell_temp_sensor).publish_state(min_cell_temp_c);
+              id(bms${bms_id}_temperature_sensor_2).publish_state(max_cell_temp_c);
