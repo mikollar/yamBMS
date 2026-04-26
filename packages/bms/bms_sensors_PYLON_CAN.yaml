@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
+substitutions:
+  bms_pylon_module_count: '3' # Number of Pylontech modules to poll over RS485
+
 packages:
   bms_base: !include bms_base.yaml
   bms_temperature_sensor: !include bms_temperature_sensor_2.yaml
@@ -113,11 +116,13 @@ binary_sensor:
 
   - platform: template
     id: bms_rs485_online
+    device_id: bms_${bms_id}
     name: "PYLON BMS RS485 online"
 
   - platform: template
-    id: bms${bms_id}_equalizing
-    name: "${name} ${bms_name} status balancing"
+    id: bms${bms_id}_bms_equalizing
+    name: "${name} ${bms_name} bms equalizing"
+    internal: true
     lambda: return id(bms${bms_id}_max_charge_current).state < 100;
 
 
@@ -136,6 +141,7 @@ binary_sensor:
     
   - platform: template
     id: bms${bms_id}_online_status
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} status online"
     internal: false
 
@@ -261,96 +267,112 @@ sensor:
 
   - platform: template
     id: bms${bms_id}_cell_delta_voltage
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_1
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.1"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_2
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.2"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_3
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.3"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_4
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.4"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_5
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.5"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_6
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.6"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_7
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.7"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_8
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.8"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_9
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.9"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_10
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.10"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_11
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.11"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_12
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.12"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_13
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.13"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_14
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.14"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_cell_voltage_3_15
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell delta voltage 3.15"
     accuracy_decimals: 3
     unit_of_measurement: V
@@ -364,18 +386,21 @@ sensor:
 
   - platform: template
     id: bms${bms_id}_total_voltage
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} battery voltage"
     accuracy_decimals: 3
     unit_of_measurement: V
 
   - platform: template
     id: bms${bms_id}_current
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} battery current"
     accuracy_decimals: 3
     unit_of_measurement: A
 
   - platform: template
     id: bms${bms_id}_power
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} battery power"
     accuracy_decimals: 1
     unit_of_measurement: W
@@ -417,16 +442,19 @@ sensor:
 
   - platform: template
     id: bms${bms_id}_temperature_sensor_1
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} temperature sensor 1"
     update_interval: never
 
   - platform: template
     id: bms${bms_id}_temperature_sensor_2
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} temperature sensor 2"
     update_interval: never
 
   - platform: template
     id: bms${bms_id}_state_of_charge
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} battery capacity state of charge"
     update_interval: never
 
@@ -464,6 +492,7 @@ sensor:
   # Bit 15    Reserved                                     1000 0000 0000 0000         0x8000
   - platform: template
     id: bms${bms_id}_yambms_errors_bitmask
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} YamBMS Errors Bitmask"
     update_interval: ${bms_update_interval}
     accuracy_decimals: 0
@@ -505,12 +534,14 @@ sensor:
 
   - platform: template
     id: bms${bms_id}_max_charge_current
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} max charging current"
     unit_of_measurement: 'A'
     update_interval: never
 
   - platform: template
     id: bms${bms_id}_max_discharge_current
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} max discharging current"
     unit_of_measurement: 'A'
     update_interval: never
@@ -545,10 +576,10 @@ sensor:
     lambda: return ${bms_cell_uvp};
     internal: true
 
-  # balance_trigger_voltage
+  # balance_trigger_voltage (raw input for bms_base_balancer.yaml)
   - platform: template
-    id: bms${bms_id}_balance_trigger_voltage
-    name: "${name} ${bms_name} balance trigger voltage"
+    id: bms${bms_id}_bms_balance_trigger_voltage
+    name: "${name} ${bms_name} bms balance trigger voltage"
     update_interval: ${bms_update_interval}
     accuracy_decimals: 3
     unit_of_measurement: V
@@ -562,12 +593,14 @@ sensor:
 
   - platform: template
     id: bms${bms_id}_min_voltage_cell
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell voltage min cell number"
     accuracy_decimals: 0
     
 
   - platform: template
     id: bms${bms_id}_max_voltage_cell
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} cell voltage max cell number"
     accuracy_decimals: 0
 
@@ -586,6 +619,7 @@ sensor:
 
   - platform: template
     id: bms${bms_id}_capacity_remaining_ah
+    device_id: bms_${bms_id}
     name: "${name} ${bms_name} battery capacity remaining"
     accuracy_decimals: 0
     unit_of_measurement: Ah
@@ -655,8 +689,8 @@ interval:
 
           // Increment module ID for the *next* interval's transmission
           id(current_module_id)++;
-          // Reset to 1 after reaching 4
-          if (id(current_module_id) > 4) {
+          // Reset to 1 after reaching the last module
+          if (id(current_module_id) > ${bms_pylon_module_count}) {
             id(current_module_id) = 1;
           }
 
@@ -666,7 +700,7 @@ interval:
 
           // Access the ID of the module that was *just* queried.
           // Note: The ID is the one *before* it was incremented and reset in the TX lambda.
-          const int queried_module_id = id(current_module_id) == 1 ? 4 : id(current_module_id) - 1;
+          const int queried_module_id = id(current_module_id) == 1 ? ${bms_pylon_module_count} : id(current_module_id) - 1;
 
           ESP_LOGI("pylon_rx", "-------------MODUL %d RX Processing", queried_module_id);
 
@@ -850,8 +884,8 @@ interval:
               
               id(modules_response_global) = id(modules_response_global) + 1;
 
-              // --- FINAL PUBLISH AND RESET LOGIC (Runs after Module 4 data is processed) ---
-              // If the next module to be queried is 1, it means we just finished processing module 4 (queried_module_id == 4).
+              // --- FINAL PUBLISH AND RESET LOGIC (Runs after the last module data is processed) ---
+              // If the next module to be queried is 1, it means we just finished the last module.
               if (id(current_module_id) == 1) {
                   ESP_LOGI("pylon_rx", "--- FULL CYCLE COMPLETE: PUBLISHING FINAL VALUES ---");
                   ESP_LOGI("pylon_rx", "--- modules_response_global %d---", id(modules_response_global));
@@ -861,7 +895,7 @@ interval:
                   id(bms${bms_id}_min_voltage_cell).publish_state(id(min_cell_location_global));
                   id(bms${bms_id}_max_cell_voltage).publish_state(id(max_cell_voltage_global));
                   id(bms${bms_id}_max_voltage_cell).publish_state(id(max_cell_location_global));
-                  id(bms_rs485_online).publish_state(id(modules_response_global) == 4);
+                  id(bms_rs485_online).publish_state(id(modules_response_global) == ${bms_pylon_module_count});
                   
 
                   float diff = id(max_cell_voltage_global) - id(min_cell_voltage_global);
