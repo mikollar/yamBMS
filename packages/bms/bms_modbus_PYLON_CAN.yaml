@@ -1,0 +1,40 @@
+# Updated : 2026.04.26
+# Version : 1.0.0
+# GitHub  : https://github.com/mikollar/yamBMS
+
+# YamBMS ( Yet another multi-BMS Merging Solution )
+
+# This YAML is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
+
+# Multi-node slave package for PYLONTECH CAN BMS.
+# Reads BMS data via:
+#   - CAN bus    : SOC, voltage, current, CCL/DCL, alarms (frame 0x351 / 0x355 / 0x356 / 0x359)
+#   - RS485 UART : individual cell voltages (min/max) for dynamic CVL
+# Serves all data to master node via modbus server (bms_modbus_server.yaml).
+#
+# Required vars (pass via !include vars:):
+#   bms_id              - unique BMS number (e.g. '1')
+#   bms_name            - display name (e.g. 'PYLONTECH')
+#   bms_cell_ovp        - cell over-voltage protection (e.g. '3.550')
+#   bms_cell_uvp        - cell under-voltage protection (e.g. '2.800')
+#   bms_balance_trigger_voltage - balance delta threshold (e.g. '0.010')
+#   pylon_rs485_uart_id - UART id for RS485 cell voltage polling (e.g. 'uart_esp_1')
+
+substitutions:
+  bms_model: "PYLONTECH CAN"
+  bms_protocol: "Multi-node"
+
+packages:
+  bms_sensors: !include bms_sensors_PYLON_CAN.yaml
+  bms_combine: !include bms_modbus_server.yaml

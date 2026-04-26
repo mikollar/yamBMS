@@ -17,6 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
 
+substitutions:
+  # UART ID used for PYLONTECH RS485 cell voltage polling.
+  # Default: uart_esp_2 (single-node on DevKit / T-Connect UART2).
+  # Set to uart_esp_1 on T-CAN485 slave node.
+  pylon_rs485_uart_id: 'uart_esp_2'
+
 packages:
   bms_base: !include bms_base.yaml
   bms_temperature_sensor: !include bms_temperature_sensor_2.yaml
@@ -650,7 +656,7 @@ interval:
               return; 
           }
 
-          id(uart_esp_2).write_array((const uint8_t*)tx.data(), tx.size());
+          id(${pylon_rs485_uart_id}).write_array((const uint8_t*)tx.data(), tx.size());
           ESP_LOGI("pylon_tx", "TX for Module %d (%d bytes): %s", current_module_id, tx.size(), tx.c_str());
 
           // Increment module ID for the *next* interval's transmission
@@ -745,9 +751,9 @@ interval:
 
 
           static std::vector<uint8_t> rx;
-          while (id(uart_esp_2).available()) {
+          while (id(${pylon_rs485_uart_id}).available()) {
             uint8_t c; 
-            id(uart_esp_2).read_byte(&c);
+            id(${pylon_rs485_uart_id}).read_byte(&c);
 
             // Wait for SOI
             if (rx.empty() && c != 0x7E) continue;
