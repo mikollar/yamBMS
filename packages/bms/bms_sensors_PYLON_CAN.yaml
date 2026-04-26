@@ -116,7 +116,7 @@ binary_sensor:
     name: "PYLON BMS RS485 online"
 
   - platform: template
-    id: bms${bms_id}_equalizing
+    id: bms${bms_id}_bms_equalizing
     name: "${name} ${bms_name} status balancing"
     lambda: return id(bms${bms_id}_max_charge_current).state < 100;
 
@@ -547,7 +547,7 @@ sensor:
 
   # balance_trigger_voltage
   - platform: template
-    id: bms${bms_id}_balance_trigger_voltage
+    id: bms${bms_id}_bms_balance_trigger_voltage
     name: "${name} ${bms_name} balance trigger voltage"
     update_interval: ${bms_update_interval}
     accuracy_decimals: 3

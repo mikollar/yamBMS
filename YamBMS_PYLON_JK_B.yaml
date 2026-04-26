@@ -246,7 +246,7 @@ packages:
   canbus1: !include
     file: packages/yambms/yambms_canbus.yaml # yambms_canbus_web_server.yaml
     vars:
-      canbus_id: 'canbus1'
+      canbus_id: '1' # must be a number
       canbus_name: 'CANBUS 1'
       canbus_node_id: 'canbus_inverter_1' # CAN bus node to which your inverter is connected
       canbus_light_id: 'esp_light'
