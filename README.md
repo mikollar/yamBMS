@@ -7,6 +7,10 @@
 ![GitHub watchers](https://img.shields.io/github/watchers/Sleeper85/esphome-yambms)
 [!["Buy Me A Coffee"](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://www.buymeacoffee.com/sleeper85)
 
+> [!WARNING]
+> ESPHome `2026.4` introduces major changes, and these may cause problems with YamBMS.
+> This new version of ESPHome will be tested and validated with the upcoming version `1.7.0` of YamBMS, which is currently in the dev branch.
+
 > [!TIP]
 > This page contains many links to other README.
 > If you don't find answers to your questions, [you'll find all the README in this folder](documents/README).
